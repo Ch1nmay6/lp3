@@ -1,0 +1,86 @@
+import numpy as np
+import time
+import threading
+
+# Single-threaded matrix multiplication
+def matrix_multiply(A, B):
+    rows_A, cols_A = len(A), len(A[0])
+    rows_B, cols_B = len(B), len(B[0])
+    
+    if cols_A != rows_B:
+        raise ValueError("Cannot multiply matrices: Incompatible dimensions")
+    
+    result = [[0] * cols_B for _ in range(rows_A)]
+    
+    for i in range(rows_A):
+        for j in range(cols_B):
+            for k in range(cols_A):
+                result[i][j] += A[i][k] * B[k][j]
+    
+    return result
+
+# Thread-per-row matrix multiplication
+def thread_multiply_row(A, B, result, row):
+    cols_B = len(B[0])
+    for j in range(cols_B):
+        result[row][j] = sum(A[row][k] * B[k][j] for k in range(len(A[0])))
+
+def matrix_multiply_thread_per_row(A, B):
+    rows_A = len(A)
+    result = [[0] * len(B[0]) for _ in range(rows_A)]
+    threads = []
+    
+    for i in range(rows_A):
+        thread = threading.Thread(target=thread_multiply_row, args=(A, B, result, i))
+        threads.append(thread)
+        thread.start()
+    
+    for thread in threads:
+        thread.join()
+    
+    return result
+
+# Thread-per-cell matrix multiplication
+def thread_multiply_cell(A, B, result, i, j):
+    result[i][j] = sum(A[i][k] * B[k][j] for k in range(len(A[0])))
+
+def matrix_multiply_thread_per_cell(A, B):
+    rows_A, cols_B = len(A), len(B[0])
+    result = [[0] * cols_B for _ in range(rows_A)]
+    threads = []
+    
+    for i in range(rows_A):
+        for j in range(cols_B):
+            thread = threading.Thread(target=thread_multiply_cell, args=(A, B, result, i, j))
+            threads.append(thread)
+            thread.start()
+    
+    for thread in threads:
+        thread.join()
+    
+    return result
+
+# Performance comparison
+if __name__ == "__main__":
+    # Generate random matrices for testing
+    size = 100  # Adjust the size as needed
+    A = np.random.randint(0, 10, (size, size)).tolist()
+    B = np.random.randint(0, 10, (size, size)).tolist()
+
+    # Single-threaded
+    start_time = time.time()
+    single_threaded_result = matrix_multiply(A, B)
+    single_threaded_time = time.time() - start_time
+    print(f"Single-threaded time: {single_threaded_time:.4f} seconds")
+
+    # Multi-threaded (Thread-per-Row)
+    start_time = time.time()
+    row_threaded_result = matrix_multiply_thread_per_row(A, B)
+    row_threaded_time = time.time() - start_time
+    print(f"Thread-per-row time: {row_threaded_time:.4f} seconds")
+
+    # Multi-threaded (Thread-per-Cell)
+    start_time = time.time()
+    cell_threaded_result = matrix_multiply_thread_per_cell(A, B)
+    cell_threaded_time = time.time() - start_time
+    print(f"Thread-per-cell time: {cell_threaded_time:.4f} seconds")
